@@ -1,0 +1,113 @@
+name: Normalise site navigation
+
+on:
+  push:
+    paths:
+      - '.github/workflows/site-nav-normalise.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  normalise:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Normalise global navigation
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          SITE_TITLE = "TAYLORS ARM FLYING FOX COMMUNITY IMPACT INVESTIGATION"
+          EYEBROW = "DEEP FORENSIC ALL PATHS TAKEN INVESTIGATION"
+          STATUS = "Status: FROZEN | Evidence Register: EVID-001 to EVID-076 | Investigation Date: 16 June 2026"
+
+          DOCS = [
+              ("index.html", "HOME"),
+              ("evidence-register.html", "EVIDENCE"),
+              ("findings/dfapta-analysis.html", "DFAPTA"),
+              ("findings/lattice-atlas.html", "LATTICE"),
+              ("findings/mechanism-register.html", "MECHANISMS"),
+              ("findings/temporal-projection-integrity-engine.html", "TPIE"),
+              ("timeline.html", "TIMELINE"),
+              ("source-library.html", "SOURCES"),
+              ("outputs.html", "OUTPUTS"),
+              ("about.html", "ABOUT"),
+          ]
+
+          def prefix_for(path: Path) -> str:
+              return "../" if len(path.parts) > 1 else ""
+
+          def nav_html(path: Path) -> str:
+              pre = prefix_for(path)
+              links = []
+              for href, label in DOCS:
+                  links.append(f'<a href="{pre}{href}">{label}</a>')
+              return '<nav class="nav global-nav">' + ''.join(links) + '</nav>'
+
+          def header_html(path: Path, h1: str, lead: str = "") -> str:
+              lead_html = f'<p class="lead">{lead}</p>' if lead else ''
+              return f'<header><div class="eyebrow">{EYEBROW}</div><h1>{h1}</h1><p class="lead">{STATUS}</p>{lead_html}{nav_html(path)}</header>'
+
+          html_files = [p for p in Path('.').rglob('*.html') if '.git' not in p.parts]
+          for path in html_files:
+              text = path.read_text(encoding='utf-8')
+              title_text = SITE_TITLE
+              text = re.sub(r'<title>.*?</title>', f'<title>{title_text}</title>', text, count=1, flags=re.S)
+              m = re.search(r'<h1>(.*?)</h1>', text, flags=re.S)
+              existing_h1 = m.group(1) if m else SITE_TITLE
+              if path.name == 'index.html':
+                  new_header = header_html(path, SITE_TITLE, 'Navigable public archive for the Taylors Arm flying fox community impact investigation.')
+              elif path.name == 'evidence-register.html':
+                  new_header = header_html(path, 'Evidence Register', 'Verbatim frozen evidence register.')
+              elif path.name == 'dfapta-analysis.html':
+                  new_header = header_html(path, 'Deep Forensic All Paths Taken Analysis', 'Verbatim frozen analysis layer.')
+              elif path.name == 'lattice-atlas.html':
+                  new_header = header_html(path, 'Lattice Atlas', 'Verbatim frozen lattice layer.')
+              elif path.name == 'mechanism-register.html':
+                  new_header = header_html(path, 'Mechanism Register', 'Verbatim frozen mechanism layer.')
+              elif path.name == 'temporal-projection-integrity-engine.html':
+                  new_header = header_html(path, 'Temporal Projection Integrity Engine', 'Verbatim frozen gate record.')
+              elif path.name == 'source-library.html':
+                  new_header = header_html(path, 'Source Library', 'Source-document route for the investigation archive.')
+              elif path.name == 'timeline.html':
+                  new_header = header_html(path, 'Investigation Timeline', 'Chronology of the investigation record.')
+              elif path.name == 'outputs.html':
+                  new_header = header_html(path, 'Output Instruments', 'Available advocacy, enforcement and submission instruments.')
+              elif path.name == 'about.html':
+                  new_header = header_html(path, 'Investigation Method', 'Method, evidence rules, freeze rules and scope.')
+              else:
+                  new_header = header_html(path, existing_h1)
+              text = re.sub(r'<header>.*?</header>', new_header, text, count=1, flags=re.S)
+              path.write_text(text, encoding='utf-8')
+
+          # Ensure missing main pages exist.
+          base_template = '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{title}</title><link rel="stylesheet" href="assets/css/site.css"></head><body>{header}<main><article class="panel content">{body}</article></main><footer class="footer">Taylors Arm Flying Fox Community Impact Investigation.</footer></body></html>'
+          missing = {
+              'timeline.html': ('Investigation Timeline', '<h2>Timeline</h2><p>Timeline page placeholder. To be populated from the frozen evidence chronology.</p>'),
+              'outputs.html': ('Output Instruments', '<h2>Available instruments</h2><p>Enforcement Notice, advocacy package, GIPA package, cross-corridor submission, ministerial submission, and Senate submission.</p>'),
+              'about.html': ('Investigation Method', '<h2>Method</h2><p>DFAPTI archive using frozen evidence, verbatim registers, no compression, no reconstruction, and persistent navigation.</p>'),
+          }
+          for name, (h1, body) in missing.items():
+              p = Path(name)
+              if not p.exists():
+                  p.write_text(base_template.format(title=SITE_TITLE, header=header_html(p, h1), body=body), encoding='utf-8')
+
+          # Update findings hub as navigation-only chain index.
+          findings = Path('findings.html')
+          findings.write_text(base_template.format(
+              title=SITE_TITLE,
+              header=header_html(findings, 'Investigation Chain', 'All frozen investigation documents accessible from one page.'),
+              body='''<h2>Frozen chain documents</h2><div class="grid"><a class="card" href="evidence-register.html"><h2>Evidence Register</h2><p>EVID-001 to EVID-076.</p><strong>Open →</strong></a><a class="card" href="findings/dfapta-analysis.html"><h2>DFAPTA</h2><p>Deep Forensic All Paths Taken Analysis.</p><strong>Open →</strong></a><a class="card" href="findings/lattice-atlas.html"><h2>Lattice Atlas</h2><p>Frozen lattice layer.</p><strong>Open →</strong></a><a class="card" href="findings/mechanism-register.html"><h2>Mechanism Register</h2><p>Frozen mechanism and yield layer.</p><strong>Open →</strong></a><a class="card" href="findings/temporal-projection-integrity-engine.html"><h2>Temporal Projection Integrity Engine</h2><p>Frozen gate record.</p><strong>Open →</strong></a></div>'''
+          ), encoding='utf-8')
+          PY
+
+      - name: Commit navigation normalisation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git diff --cached --quiet || git commit -m "Normalise persistent site navigation and title"
+          git push
