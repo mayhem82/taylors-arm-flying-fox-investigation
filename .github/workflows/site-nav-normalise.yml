@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Normalise global navigation
+      - name: Normalise global navigation and public wording
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -37,15 +37,54 @@ jobs:
               ("about.html", "ABOUT"),
           ]
 
+          def strength(value: float) -> str:
+              if value >= 9.0:
+                  return "Exceptional Evidentiary Strength"
+              if value >= 8.0:
+                  return "Very High Evidentiary Strength"
+              if value >= 7.0:
+                  return "High Evidentiary Strength"
+              if value >= 6.0:
+                  return "Moderate Evidentiary Strength"
+              if value >= 5.0:
+                  return "Limited Evidentiary Strength"
+              return "Insufficient Evidentiary Strength"
+
+          def replace_fs(text: str) -> str:
+              # Ranges first.
+              text = re.sub(
+                  r'Mechanism FS range: ([0-9]+(?:\.[0-9]+)?) to ([0-9]+(?:\.[0-9]+)?)\.',
+                  lambda m: f'Evidentiary Strength range: {strength(float(m.group(1)))} to {strength(float(m.group(2)))}.',
+                  text
+              )
+              text = re.sub(
+                  r'Mechanism FS: ([0-9]+(?:\.[0-9]+)?) \(Condition 1\), ([0-9]+(?:\.[0-9]+)?) \(Condition 2\), ([0-9]+(?:\.[0-9]+)?) \(Condition 3\)\.',
+                  lambda m: 'Evidentiary Strength: Condition 1 — ' + strength(float(m.group(1))) + '; Condition 2 — ' + strength(float(m.group(2))) + '; Condition 3 — ' + strength(float(m.group(3))) + '.',
+                  text
+              )
+              patterns = [
+                  (r'FS assessment for Condition ([123]):(.*?)(?:FS:|FS\s)([0-9]+(?:\.[0-9]+)?)\.', lambda m: f'Evidentiary strength assessment for Condition {m.group(1)}:{m.group(2)}Evidentiary Strength: {strength(float(m.group(3)))}.'),
+                  (r'Condition ([123]): SATISFIED at FS ([0-9]+(?:\.[0-9]+)?)\.', lambda m: f'Condition {m.group(1)}: SATISFIED. Evidentiary Strength: {strength(float(m.group(2)))}.'),
+                  (r'Founding FS: ([0-9]+(?:\.[0-9]+)?)\.', lambda m: f'Evidentiary Strength: {strength(float(m.group(1)))}.'),
+                  (r'FS of founding entries:(.*?)(?:FS:|FS\s)([0-9]+(?:\.[0-9]+)?)\.', lambda m: f'Evidentiary strength of founding entries:{m.group(1)}Evidentiary Strength: {strength(float(m.group(2)))}.'),
+                  (r'Intervening variables possible:(.*?)(?:FS:|FS\s)([0-9]+(?:\.[0-9]+)?)\.', lambda m: f'Intervening variables possible:{m.group(1)}Evidentiary Strength: {strength(float(m.group(2)))}.'),
+                  (r'FS ([0-9]+(?:\.[0-9]+)?)', lambda m: strength(float(m.group(1)))),
+                  (r'FS: ([0-9]+(?:\.[0-9]+)?)', lambda m: 'Evidentiary Strength: ' + strength(float(m.group(1)))),
+                  (r'below 5\.0', 'Insufficient Evidentiary Strength'),
+              ]
+              for pat, repl in patterns:
+                  text = re.sub(pat, repl, text, flags=re.S)
+              text = text.replace('Evidentiary Strength 7.0 or above', 'High Evidentiary Strength or above')
+              text = text.replace('Evidentiary Strength between 5.0 and 6.9', 'Limited to Moderate Evidentiary Strength')
+              text = text.replace('PF(H,E)=1', 'confirmed against evidence')
+              return text
+
           def prefix_for(path: Path) -> str:
               return "../" if len(path.parts) > 1 else ""
 
           def nav_html(path: Path) -> str:
               pre = prefix_for(path)
-              links = []
-              for href, label in DOCS:
-                  links.append(f'<a href="{pre}{href}">{label}</a>')
-              return '<nav class="nav global-nav">' + ''.join(links) + '</nav>'
+              return '<nav class="nav global-nav">' + ''.join(f'<a href="{pre}{href}">{label}</a>' for href, label in DOCS) + '</nav>'
 
           def header_html(path: Path, h1: str, lead: str = "") -> str:
               lead_html = f'<p class="lead">{lead}</p>' if lead else ''
@@ -54,8 +93,8 @@ jobs:
           html_files = [p for p in Path('.').rglob('*.html') if '.git' not in p.parts]
           for path in html_files:
               text = path.read_text(encoding='utf-8')
-              title_text = SITE_TITLE
-              text = re.sub(r'<title>.*?</title>', f'<title>{title_text}</title>', text, count=1, flags=re.S)
+              text = replace_fs(text)
+              text = re.sub(r'<title>.*?</title>', f'<title>{SITE_TITLE}</title>', text, count=1, flags=re.S)
               m = re.search(r'<h1>(.*?)</h1>', text, flags=re.S)
               existing_h1 = m.group(1) if m else SITE_TITLE
               if path.name == 'index.html':
@@ -69,7 +108,7 @@ jobs:
               elif path.name == 'mechanism-register.html':
                   new_header = header_html(path, 'Mechanism Register', 'Verbatim frozen mechanism layer.')
               elif path.name == 'temporal-projection-integrity-engine.html':
-                  new_header = header_html(path, 'Temporal Projection Integrity Engine', 'Verbatim frozen gate record.')
+                  new_header = header_html(path, 'Temporal Projection Integrity Engine', 'Verbatim frozen gate record with public evidentiary-strength wording.')
               elif path.name == 'source-library.html':
                   new_header = header_html(path, 'Source Library', 'Source-document route for the investigation archive.')
               elif path.name == 'timeline.html':
@@ -83,31 +122,37 @@ jobs:
               text = re.sub(r'<header>.*?</header>', new_header, text, count=1, flags=re.S)
               path.write_text(text, encoding='utf-8')
 
-          # Ensure missing main pages exist.
           base_template = '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{title}</title><link rel="stylesheet" href="assets/css/site.css"></head><body>{header}<main><article class="panel content">{body}</article></main><footer class="footer">Taylors Arm Flying Fox Community Impact Investigation.</footer></body></html>'
           missing = {
               'timeline.html': ('Investigation Timeline', '<h2>Timeline</h2><p>Timeline page placeholder. To be populated from the frozen evidence chronology.</p>'),
               'outputs.html': ('Output Instruments', '<h2>Available instruments</h2><p>Enforcement Notice, advocacy package, GIPA package, cross-corridor submission, ministerial submission, and Senate submission.</p>'),
-              'about.html': ('Investigation Method', '<h2>Method</h2><p>DFAPTI archive using frozen evidence, verbatim registers, no compression, no reconstruction, and persistent navigation.</p>'),
+              'about.html': ('Investigation Method', '<h2>Evidentiary Strength</h2><p>Exceptional: strongest documentary support.</p><p>Very High: multiple strong documentary sources.</p><p>High: strong documentary support sufficient for public reliance.</p><p>Moderate: supported but with named conditions or limitations.</p><p>Limited: useful as a lead, not enough for a settled finding.</p><p>Insufficient: excluded from forward findings.</p><h2>Method</h2><p>DFAPTI archive using frozen evidence, verbatim registers, no compression, no reconstruction, and persistent navigation.</p>'),
           }
           for name, (h1, body) in missing.items():
               p = Path(name)
               if not p.exists():
                   p.write_text(base_template.format(title=SITE_TITLE, header=header_html(p, h1), body=body), encoding='utf-8')
 
-          # Update findings hub as navigation-only chain index.
           findings = Path('findings.html')
           findings.write_text(base_template.format(
               title=SITE_TITLE,
               header=header_html(findings, 'Investigation Chain', 'All frozen investigation documents accessible from one page.'),
-              body='''<h2>Frozen chain documents</h2><div class="grid"><a class="card" href="evidence-register.html"><h2>Evidence Register</h2><p>EVID-001 to EVID-076.</p><strong>Open →</strong></a><a class="card" href="findings/dfapta-analysis.html"><h2>DFAPTA</h2><p>Deep Forensic All Paths Taken Analysis.</p><strong>Open →</strong></a><a class="card" href="findings/lattice-atlas.html"><h2>Lattice Atlas</h2><p>Frozen lattice layer.</p><strong>Open →</strong></a><a class="card" href="findings/mechanism-register.html"><h2>Mechanism Register</h2><p>Frozen mechanism and yield layer.</p><strong>Open →</strong></a><a class="card" href="findings/temporal-projection-integrity-engine.html"><h2>Temporal Projection Integrity Engine</h2><p>Frozen gate record.</p><strong>Open →</strong></a></div>'''
+              body='''<h2>Frozen chain documents</h2><div class="grid"><a class="card" href="evidence-register.html"><h2>Evidence Register</h2><p>EVID-001 to EVID-076.</p><strong>Open →</strong></a><a class="card" href="findings/dfapta-analysis.html"><h2>DFAPTA</h2><p>Deep Forensic All Paths Taken Analysis.</p><strong>Open →</strong></a><a class="card" href="findings/lattice-atlas.html"><h2>Lattice Atlas</h2><p>Frozen lattice layer.</p><strong>Open →</strong></a><a class="card" href="findings/mechanism-register.html"><h2>Mechanism Register</h2><p>Frozen mechanism and yield layer.</p><strong>Open →</strong></a><a class="card" href="findings/temporal-projection-integrity-engine.html"><h2>Temporal Projection Integrity Engine</h2><p>Frozen gate record with public evidentiary-strength wording.</p><strong>Open →</strong></a></div>'''
           ), encoding='utf-8')
+
+          index = Path('index.html')
+          if index.exists():
+              text = index.read_text(encoding='utf-8')
+              guide = '''<section class="panel"><h2>Investigation Reading Guide</h2><p><strong>Evidence Register</strong>: primary evidence only.</p><p><strong>DFAPTA</strong>: what the evidence proves and does not prove.</p><p><strong>Lattice Atlas</strong>: structural interactions and emergent patterns.</p><p><strong>Mechanism Register</strong>: active mechanisms confirmed in evidence.</p><p><strong>Temporal Projection Integrity Engine</strong>: forward observations assessed against documented evidence.</p><p><strong>Evidentiary Strength</strong>: Exceptional, Very High, High, Moderate, Limited, or Insufficient.</p></section>'''
+              if 'Investigation Reading Guide' not in text:
+                  text = text.replace('</main>', guide + '</main>')
+              index.write_text(text, encoding='utf-8')
           PY
 
-      - name: Commit navigation normalisation
+      - name: Commit navigation and wording normalisation
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .
-          git diff --cached --quiet || git commit -m "Normalise persistent site navigation and title"
+          git diff --cached --quiet || git commit -m "Normalise persistent navigation and evidentiary strength wording"
           git push
