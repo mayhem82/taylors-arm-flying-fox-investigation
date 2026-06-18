@@ -31,6 +31,7 @@ jobs:
               ("findings/lattice-atlas.html", "LATTICE"),
               ("findings/mechanism-register.html", "MECHANISMS"),
               ("findings/temporal-projection-integrity-engine.html", "TPIE"),
+              ("findings/enforcement-notice.html", "ENFORCEMENT"),
               ("timeline.html", "TIMELINE"),
               ("source-library.html", "SOURCES"),
               ("outputs.html", "OUTPUTS"),
@@ -51,17 +52,8 @@ jobs:
               return "Insufficient Evidentiary Strength"
 
           def replace_fs(text: str) -> str:
-              # Ranges first.
-              text = re.sub(
-                  r'Mechanism FS range: ([0-9]+(?:\.[0-9]+)?) to ([0-9]+(?:\.[0-9]+)?)\.',
-                  lambda m: f'Evidentiary Strength range: {strength(float(m.group(1)))} to {strength(float(m.group(2)))}.',
-                  text
-              )
-              text = re.sub(
-                  r'Mechanism FS: ([0-9]+(?:\.[0-9]+)?) \(Condition 1\), ([0-9]+(?:\.[0-9]+)?) \(Condition 2\), ([0-9]+(?:\.[0-9]+)?) \(Condition 3\)\.',
-                  lambda m: 'Evidentiary Strength: Condition 1 — ' + strength(float(m.group(1))) + '; Condition 2 — ' + strength(float(m.group(2))) + '; Condition 3 — ' + strength(float(m.group(3))) + '.',
-                  text
-              )
+              text = re.sub(r'Mechanism FS range: ([0-9]+(?:\.[0-9]+)?) to ([0-9]+(?:\.[0-9]+)?)\.', lambda m: f'Evidentiary Strength range: {strength(float(m.group(1)))} to {strength(float(m.group(2)))}.', text)
+              text = re.sub(r'Mechanism FS: ([0-9]+(?:\.[0-9]+)?) \(Condition 1\), ([0-9]+(?:\.[0-9]+)?) \(Condition 2\), ([0-9]+(?:\.[0-9]+)?) \(Condition 3\)\.', lambda m: 'Evidentiary Strength: Condition 1 — ' + strength(float(m.group(1))) + '; Condition 2 — ' + strength(float(m.group(2))) + '; Condition 3 — ' + strength(float(m.group(3))) + '.', text)
               patterns = [
                   (r'FS assessment for Condition ([123]):(.*?)(?:FS:|FS\s)([0-9]+(?:\.[0-9]+)?)\.', lambda m: f'Evidentiary strength assessment for Condition {m.group(1)}:{m.group(2)}Evidentiary Strength: {strength(float(m.group(3)))}.'),
                   (r'Condition ([123]): SATISFIED at FS ([0-9]+(?:\.[0-9]+)?)\.', lambda m: f'Condition {m.group(1)}: SATISFIED. Evidentiary Strength: {strength(float(m.group(2)))}.'),
@@ -109,6 +101,8 @@ jobs:
                   new_header = header_html(path, 'Mechanism Register', 'Verbatim frozen mechanism layer.')
               elif path.name == 'temporal-projection-integrity-engine.html':
                   new_header = header_html(path, 'Temporal Projection Integrity Engine', 'Verbatim frozen gate record with public evidentiary-strength wording.')
+              elif path.name == 'enforcement-notice.html':
+                  new_header = header_html(path, 'Enforcement Notice', 'Submission-ready enforcement notice and remedy demands.')
               elif path.name == 'source-library.html':
                   new_header = header_html(path, 'Source Library', 'Source-document route for the investigation archive.')
               elif path.name == 'timeline.html':
@@ -125,7 +119,7 @@ jobs:
           base_template = '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{title}</title><link rel="stylesheet" href="assets/css/site.css"></head><body>{header}<main><article class="panel content">{body}</article></main><footer class="footer">Taylors Arm Flying Fox Community Impact Investigation.</footer></body></html>'
           missing = {
               'timeline.html': ('Investigation Timeline', '<h2>Timeline</h2><p>Timeline page placeholder. To be populated from the frozen evidence chronology.</p>'),
-              'outputs.html': ('Output Instruments', '<h2>Available instruments</h2><p>Enforcement Notice, advocacy package, GIPA package, cross-corridor submission, ministerial submission, and Senate submission.</p>'),
+              'outputs.html': ('Output Instruments', '<h2>Available instruments</h2><div class="grid"><a class="card" href="findings/enforcement-notice.html"><h2>Enforcement Notice</h2><p>Submission-ready enforcement notice documenting governance failure, obligations, remedy demands, corridor findings and self-remediation assessment.</p><strong>Open →</strong></a></div>'),
               'about.html': ('Investigation Method', '<h2>Evidentiary Strength</h2><p>Exceptional: strongest documentary support.</p><p>Very High: multiple strong documentary sources.</p><p>High: strong documentary support sufficient for public reliance.</p><p>Moderate: supported but with named conditions or limitations.</p><p>Limited: useful as a lead, not enough for a settled finding.</p><p>Insufficient: excluded from forward findings.</p><h2>Method</h2><p>DFAPTI archive using frozen evidence, verbatim registers, no compression, no reconstruction, and persistent navigation.</p>'),
           }
           for name, (h1, body) in missing.items():
@@ -137,15 +131,15 @@ jobs:
           findings.write_text(base_template.format(
               title=SITE_TITLE,
               header=header_html(findings, 'Investigation Chain', 'All frozen investigation documents accessible from one page.'),
-              body='''<h2>Frozen chain documents</h2><div class="grid"><a class="card" href="evidence-register.html"><h2>Evidence Register</h2><p>EVID-001 to EVID-076.</p><strong>Open →</strong></a><a class="card" href="findings/dfapta-analysis.html"><h2>DFAPTA</h2><p>Deep Forensic All Paths Taken Analysis.</p><strong>Open →</strong></a><a class="card" href="findings/lattice-atlas.html"><h2>Lattice Atlas</h2><p>Frozen lattice layer.</p><strong>Open →</strong></a><a class="card" href="findings/mechanism-register.html"><h2>Mechanism Register</h2><p>Frozen mechanism and yield layer.</p><strong>Open →</strong></a><a class="card" href="findings/temporal-projection-integrity-engine.html"><h2>Temporal Projection Integrity Engine</h2><p>Frozen gate record with public evidentiary-strength wording.</p><strong>Open →</strong></a></div>'''
+              body='''<h2>Frozen chain documents</h2><div class="grid"><a class="card" href="evidence-register.html"><h2>Evidence Register</h2><p>EVID-001 to EVID-076.</p><strong>Open →</strong></a><a class="card" href="findings/dfapta-analysis.html"><h2>DFAPTA</h2><p>Deep Forensic All Paths Taken Analysis.</p><strong>Open →</strong></a><a class="card" href="findings/lattice-atlas.html"><h2>Lattice Atlas</h2><p>Frozen lattice layer.</p><strong>Open →</strong></a><a class="card" href="findings/mechanism-register.html"><h2>Mechanism Register</h2><p>Frozen mechanism and yield layer.</p><strong>Open →</strong></a><a class="card" href="findings/temporal-projection-integrity-engine.html"><h2>Temporal Projection Integrity Engine</h2><p>Frozen gate record with public evidentiary-strength wording.</p><strong>Open →</strong></a><a class="card" href="findings/enforcement-notice.html"><h2>Enforcement Notice</h2><p>Submission-ready remedy and recipient notice.</p><strong>Open →</strong></a></div>'''
           ), encoding='utf-8')
 
           index = Path('index.html')
           if index.exists():
               text = index.read_text(encoding='utf-8')
-              guide = '''<section class="panel"><h2>Investigation Reading Guide</h2><p><strong>Evidence Register</strong>: primary evidence only.</p><p><strong>DFAPTA</strong>: what the evidence proves and does not prove.</p><p><strong>Lattice Atlas</strong>: structural interactions and emergent patterns.</p><p><strong>Mechanism Register</strong>: active mechanisms confirmed in evidence.</p><p><strong>Temporal Projection Integrity Engine</strong>: forward observations assessed against documented evidence.</p><p><strong>Evidentiary Strength</strong>: Exceptional, Very High, High, Moderate, Limited, or Insufficient.</p></section>'''
-              if 'Investigation Reading Guide' not in text:
-                  text = text.replace('</main>', guide + '</main>')
+              text = re.sub(r'<section class="panel"><h2>Investigation Reading Guide</h2>.*?</section>', '', text, flags=re.S)
+              guide = '''<section class="panel"><h2>Investigation Reading Guide</h2><p><strong>Evidence Register</strong>: primary evidence only.</p><p><strong>DFAPTA</strong>: what the evidence proves and does not prove.</p><p><strong>Lattice Atlas</strong>: structural interactions and emergent patterns.</p><p><strong>Mechanism Register</strong>: active mechanisms confirmed in evidence.</p><p><strong>Temporal Projection Integrity Engine</strong>: forward observations assessed against documented evidence.</p><p><strong>Enforcement Notice</strong>: submission-ready remedy demands and recipients.</p><p><strong>Evidentiary Strength</strong>: Exceptional, Very High, High, Moderate, Limited, or Insufficient.</p></section>'''
+              text = text.replace('</main>', guide + '</main>')
               index.write_text(text, encoding='utf-8')
           PY
 
@@ -154,5 +148,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .
-          git diff --cached --quiet || git commit -m "Normalise persistent navigation and evidentiary strength wording"
+          git diff --cached --quiet || git commit -m "Normalise persistent navigation with Enforcement Notice link"
           git push
